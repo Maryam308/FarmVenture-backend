@@ -38,29 +38,4 @@ FarmVenture is an agritourism platform designed to bridge local farms with exper
 FarmVenture was created to promote agritourism, help local farms gain visibility, and provide city dwellers with meaningful rural experiences; all within a single digital platform. Whether you're looking for a weekend workshop or fresh farm produce, FarmVenture makes the connection simple, reliable, and delightful.
 Support local farms. Experience real agriculture.
 
----
 
-## User Stories
-
-
----
-
-## ERD Diagram
-
----
-
-## Assets & Inspiration
-
-Images, videos, and layout inspiration for this project were sourced from [Pinterest](https://www.pinterest.com/), focusing on visual appeal and modern UI.  
-
-> These assets are used for educational purposes and UI/UX inspiration only. All rights belong to the original creators.
-
-
----
-
-## 🧪 Technologies Used
-
-
----
-
-## 🎯 Next Steps / Future Enhancements
