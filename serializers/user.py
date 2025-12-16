@@ -1,26 +1,35 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional
+from models.user import UserRole  
 
 class UserSchema(BaseModel):
     username: str
     email: str
     password: str
+    role: Optional[UserRole] = Field(default=UserRole.CUSTOMER)  
 
     class Config:
         orm_mode = True
+        use_enum_values = True  
 
 class UserResponseSchema(BaseModel):
     username: str
     email: str
-
-# New schema for user login (captures username and password during login)
-class UserLogin(BaseModel):
-    username: str  # Username provided by the user during login
-    password: str  # Plain text password provided by the user during login
-
-# New schema for the response (containing the JWT token and a success message)
-class UserToken(BaseModel):
-    token: str  # JWT token generated upon successful login
-    message: str  # Success message
+    role: UserRole 
 
     class Config:
         orm_mode = True
+        use_enum_values = True
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class UserToken(BaseModel):
+    token: str
+    message: str
+    role: UserRole  
+
+    class Config:
+        orm_mode = True
+        use_enum_values = True
