@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from controllers.users import router as UsersRouter
 from controllers.hoots import router as HootsRouter  
 from fastapi.middleware.cors import CORSMiddleware
-
+import os
+frontendUrl = os.getenv("FRONTENDURL", "")
 app = FastAPI(
     title="Hoot API",
     description="A blogging platform API built with FastAPI",
@@ -12,7 +13,7 @@ app = FastAPI(
 origins = [
     "http://127.0.0.1:5173",
     "http://localhost:5173",
-    "https://farm-venture-frontend-fpgvm1h9h-maryams-projects-85cf0171.vercel.app",
+    frontendUrl,
 ]
 
 app.add_middleware(
