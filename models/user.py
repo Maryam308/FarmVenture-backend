@@ -24,6 +24,8 @@ class UserModel(BaseModel):
     password_hash = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.CUSTOMER, nullable=False)  
 
+
+
     def set_password(self, password: str):
         self.password_hash = pwd_context.hash(password)
 

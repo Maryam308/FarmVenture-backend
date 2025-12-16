@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from controllers.users import router as UsersRouter
+from controllers.products import router as ProductsRouter
 
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -34,7 +35,9 @@ app.add_middleware(
 )
 
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
+app.include_router(ProductsRouter, prefix="/api", tags=["Products"])
 app.include_router(ActivitiesRouter, prefix="/api", tags=["Activities"])
+
 @app.get('/')
 def home():
     return {'message': 'Welcome to FarmVenture API! Visit /docs for API documentation.'}
