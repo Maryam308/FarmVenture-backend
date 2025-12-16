@@ -14,6 +14,8 @@ bcrypt = "==4.0.1"
 pyjwt = "*"
 alembic = "*"
 dotenv = "*"
+cloudinary = "*"
+python-multipart = "*"
 
 [dev-packages]
 

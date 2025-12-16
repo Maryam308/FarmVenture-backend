@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from models.product import ProductModel
@@ -6,10 +6,24 @@ from models.user import UserModel, UserRole
 from serializers.product import ProductCreate, ProductUpdate, ProductSchema
 from database import get_db
 from dependencies.get_current_user import get_current_user
+import cloudinary.uploader
+import cloudinary
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
 
 router = APIRouter()
 
-# GET all products (public - no auth required)
+# GET all products (public - no auth required) - Only active products
 @router.get('/products', response_model=List[ProductSchema])
 def get_products(
     db: Session = Depends(get_db),
@@ -21,7 +35,7 @@ def get_products(
     offset: int = Query(0, ge=0, description="Offset for pagination")
 ):
     """
-    Get all products with optional filtering and search.
+    Get all ACTIVE products with optional filtering and search.
     
     - **category**: Filter by product category
     - **min_price**: Minimum price filter
@@ -30,7 +44,7 @@ def get_products(
     - **limit**: Number of results per page (1-100)
     - **offset**: Pagination offset
     
-    Returns all active products ordered by newest first.
+    Returns only active products ordered by newest first.
     """
     query = db.query(ProductModel).filter(ProductModel.is_active == True)
     
@@ -56,11 +70,11 @@ def get_products(
     
     return products
 
-# GET single product (public endpoint)
+# GET single product (public endpoint) - Only active products
 @router.get('/products/{product_id}', response_model=ProductSchema)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """
-    Get a single product by ID.
+    Get a single ACTIVE product by ID.
     
     Returns product details with user information.
     """
@@ -77,6 +91,43 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     
     return product
 
+# Image upload endpoint
+@router.post('/products/upload-image', response_model=dict)
+async def upload_product_image(
+    file: UploadFile = File(...),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Upload a product image to Cloudinary.
+    Returns the image URL.
+    """
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only image files are allowed"
+        )
+    
+    try:
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            file.file,
+            folder="farmventure/products",
+            resource_type="image",
+            transformation=[
+                {"width": 800, "height": 600, "crop": "limit"},
+                {"quality": "auto:good"}
+            ]
+        )
+        
+        return {"url": result.get("secure_url")}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload image: {str(e)}"
+        )
+
 # POST create product (requires authentication)
 @router.post('/products', response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
 def create_product(
@@ -91,15 +142,18 @@ def create_product(
     - **description**: Product description
     - **price**: Product price (must be positive)
     - **category**: Product category
+    - **image_url**: Product image URL (optional)
     
     Requires authentication. The authenticated user becomes the product owner.
+    By default, new products are created as ACTIVE.
     """
     new_product = ProductModel(
         name=product.name,
         description=product.description,
         price=product.price,
         category=product.category,
-        # image_url=product.image_url,  # TODO: Uncomment for Cloudinary
+        image_url=product.image_url,
+        is_active=True,  # New products are active by default
         user_id=current_user.id  # Authenticated user is the owner
     )
     
@@ -122,6 +176,7 @@ def update_product(
     
     Only the product owner or an admin can update a product.
     All fields are optional - only provided fields will be updated.
+    Use is_active field to activate/deactivate product.
     """
     db_product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
     
@@ -147,7 +202,7 @@ def update_product(
     db.refresh(db_product)
     return db_product
 
-# DELETE product (requires authentication - owner OR admin)
+# DELETE product - HARD DELETE (requires authentication - owner OR admin)
 @router.delete('/products/{product_id}')
 def delete_product(
     product_id: int,
@@ -155,10 +210,10 @@ def delete_product(
     current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Delete a product (soft delete).
+    DELETE a product permanently (hard delete).
     
     Only the product owner or an admin can delete a product.
-    This performs a soft delete by setting is_active=False.
+    This performs a HARD DELETE - product is removed from database entirely.
     """
     db_product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
     
@@ -175,13 +230,13 @@ def delete_product(
             detail="Not authorized to delete this product"
         )
     
-    # Soft delete (set is_active=False instead of actual deletion)
-    db_product.is_active = False
+    # HARD DELETE - remove from database
+    db.delete(db_product)
     db.commit()
     
-    return {"message": f"Product with id {product_id} has been deleted successfully"}
+    return {"message": f"Product with id {product_id} has been permanently deleted"}
 
-# GET products by user (public endpoint)
+# GET products by user (public endpoint) - Only active products
 @router.get('/users/{user_id}/products', response_model=List[ProductSchema])
 def get_user_products(
     user_id: int,
@@ -190,7 +245,7 @@ def get_user_products(
     offset: int = Query(0, ge=0)
 ):
     """
-    Get all products by a specific user.
+    Get all ACTIVE products by a specific user.
     
     Returns active products created by the specified user.
     """
@@ -238,19 +293,20 @@ def get_all_products_admin(
     
     return products
 
-# RESTORE deleted product (admin only)
-@router.put('/admin/products/{product_id}/restore', response_model=ProductSchema)
-def restore_product(
+# ACTIVATE/DEACTIVATE product (admin only)
+@router.put('/admin/products/{product_id}/toggle-active', response_model=ProductSchema)
+def toggle_product_active(
     product_id: int,
+    is_active: bool = Query(..., description="Set product active status"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Restore a soft-deleted product - Admin only.
+    Toggle product active status - Admin only.
     
-    Only users with ADMIN role can restore deleted products.
+    Only users with ADMIN role can change product active status.
     """
-    # Authorization: only admin can restore
+    # Authorization: only admin can access
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -265,8 +321,8 @@ def restore_product(
             detail=f"Product with id {product_id} not found"
         )
     
-    # Restore the product
-    db_product.is_active = True
+    # Toggle active status
+    db_product.is_active = is_active
     db.commit()
     db.refresh(db_product)
     
