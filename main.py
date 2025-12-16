@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from controllers.users import router as UsersRouter
-from controllers.hoots import router as HootsRouter  # NEW
+from controllers.hoots import router as HootsRouter  
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -11,7 +11,8 @@ app = FastAPI(
 
 origins = [
     "http://127.0.0.1:5173",
-    "http://localhost:5173"
+    "http://localhost:5173",
+    "https://farm-venture-frontend-fpgvm1h9h-maryams-projects-85cf0171.vercel.app",
 ]
 
 app.add_middleware(
