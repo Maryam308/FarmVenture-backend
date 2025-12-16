@@ -41,3 +41,6 @@ class UserModel(BaseModel):
         token = jwt.encode(payload, secret, algorithm="HS256")
 
         return token
+
+    def is_admin(self):
+        return self.role == UserRole.ADMIN
