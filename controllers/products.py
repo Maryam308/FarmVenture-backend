@@ -13,7 +13,7 @@ import os
 
 load_dotenv()
 
-# Configure Cloudinary
+# Configure Cloudinary 
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
     api_key=os.getenv('CLOUDINARY_API_KEY'),
@@ -74,7 +74,7 @@ def get_products(
 @router.get('/products/{product_id}', response_model=ProductSchema)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """
-    Get a single ACTIVE product by ID.
+    - Get a single ACTIVE product by ID.
     
     Returns product details with user information.
     """
