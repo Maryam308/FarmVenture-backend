@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from controllers.users import router as UsersRouter
+from controllers.products import router as ProductsRouter
 
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -34,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
+app.include_router(ProductsRouter, prefix="/api", tags=["Products"])
 
 @app.get('/')
 def home():
