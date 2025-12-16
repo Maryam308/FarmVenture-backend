@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from controllers.users import router as UsersRouter
-from controllers.hoots import router as HootsRouter  
+
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
 frontendUrl = os.getenv("FRONTENDURL")
 
 app = FastAPI(
-    title="Hoot API",
-    description="A blogging platform API built with FastAPI",
+    title="FarmVenture API",
+    description="A farm platform API built with FastAPI",
     version="1.0.0"
 )
 
@@ -34,8 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
-app.include_router(HootsRouter, prefix="/api", tags=["Hoots"])
 
 @app.get('/')
 def home():
-    return {'message': 'Welcome to Hoot API! Visit /docs for API documentation.'}
+    return {'message': 'Welcome to FarmVenture API! Visit /docs for API documentation.'}
