@@ -4,9 +4,6 @@ from controllers.hoots import router as HootsRouter
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-# Debug: Print environment variable
-print(f"DEBUG: FRONTENDURL = {os.getenv('FRONTENDURL')}")
-
 frontendUrl = os.getenv("FRONTENDURL")
 
 app = FastAPI(
@@ -15,29 +12,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Debug origins
+# Include localhost for development and production frontend URL
 origins = [
     "http://127.0.0.1:5173",
     "http://localhost:5173",
 ]
 
 if frontendUrl:
-    print(f"DEBUG: Adding frontendUrl to origins: {frontendUrl}")
     origins.append(frontendUrl)
-else:
-    print("DEBUG: frontendUrl is None or empty!")
 
 print(f"DEBUG: Final origins list: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://farm-venture-frontend-.*\.vercel\.app",  
+    
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
-# Register routers
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
 app.include_router(HootsRouter, prefix="/api", tags=["Hoots"])
 
