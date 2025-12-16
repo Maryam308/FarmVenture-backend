@@ -91,6 +91,45 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     
     return product
 
+# GET any product by ID (including inactive) - for authenticated users
+@router.get('/products/{product_id}/any', response_model=ProductSchema)
+def get_any_product(
+    product_id: int, 
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Get any product by ID (including inactive products).
+    - Product owner can view their own inactive products
+    - Admin can view any product (active or inactive)
+    - Regular users cannot view other users' inactive products
+    """
+    product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found"
+        )
+    
+    # Check permissions
+    is_owner = product.user_id == current_user.id
+    is_admin = current_user.role == UserRole.ADMIN
+    
+    # If product is active, anyone can view it
+    if product.is_active:
+        return product
+    
+    # If product is inactive, only owner or admin can view it
+    if not product.is_active and (is_owner or is_admin):
+        return product
+    
+    # If we get here, user is not authorized to view this inactive product
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Product with id {product_id} not found"
+    )
+
 # Image upload endpoint
 @router.post('/products/upload-image', response_model=dict)
 async def upload_product_image(
@@ -256,6 +295,31 @@ def get_user_products(
      .limit(limit)\
      .offset(offset)\
      .all()
+    
+    return products
+
+# GET all products by user (including inactive) - for profile page
+@router.get('/users/{user_id}/all-products', response_model=List[ProductSchema])
+def get_all_user_products(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Get ALL products by a specific user (including inactive).
+    
+    Only the user themselves or an admin can access inactive products.
+    """
+    # Check if user is accessing their own products or is admin
+    if current_user.id != user_id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view these products"
+        )
+    
+    products = db.query(ProductModel).filter(
+        ProductModel.user_id == user_id
+    ).order_by(ProductModel.created_at.desc()).all()
     
     return products
 
