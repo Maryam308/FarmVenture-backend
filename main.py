@@ -15,25 +15,26 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Include localhost for development and production frontend URL
+# CORS Configuration
 origins = [
     "http://127.0.0.1:5173",
-    "http://localhost:5173",
+    "http://localhost:5173"
 ]
 
+# Add production frontend URL if exists
 if frontendUrl:
     origins.append(frontendUrl)
+   
 
-
-
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_origin_regex=r"https://farm-venture-frontend-.*\.vercel\.app",  
-    
+    allow_origins=origins,  # Specific origins
+    allow_origin_regex=r"https://farm-venture-frontend-.*\.vercel\.app",  # Regex for Vercel previews
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
