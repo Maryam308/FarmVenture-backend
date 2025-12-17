@@ -7,18 +7,18 @@ class UserSchema(BaseModel):
     email: str
     password: str
     role: Optional[UserRole] = Field(default=UserRole.CUSTOMER)  
-
+    
     class Config:
-        orm_mode = True
+        from_attributes = True  # CHANGED from orm_mode
         use_enum_values = True  
 
 class UserResponseSchema(BaseModel):
     username: str
     email: str
     role: UserRole 
-
+    
     class Config:
-        orm_mode = True
+        from_attributes = True  # CHANGED from orm_mode
         use_enum_values = True
 
 class UserLogin(BaseModel):
@@ -29,7 +29,7 @@ class UserToken(BaseModel):
     token: str
     message: str
     role: UserRole  
-
+    
     class Config:
-        orm_mode = True
+        from_attributes = True  # CHANGED from orm_mode
         use_enum_values = True

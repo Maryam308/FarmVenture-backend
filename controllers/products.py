@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from models.product import ProductModel
 from models.user import UserModel, UserRole
@@ -46,7 +46,7 @@ def get_products(
     
     Returns only active products ordered by newest first.
     """
-    query = db.query(ProductModel).filter(ProductModel.is_active == True)
+    query = db.query(ProductModel).filter(ProductModel.is_active == True).options(joinedload(ProductModel.user))
     
     # Apply filters
     if category:
@@ -81,7 +81,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(ProductModel).filter(
         ProductModel.id == product_id,
         ProductModel.is_active == True
-    ).first()
+    ).options(joinedload(ProductModel.user)).first()
     
     if not product:
         raise HTTPException(
@@ -104,7 +104,7 @@ def get_any_product(
     - Admin can view any product (active or inactive)
     - Regular users cannot view other users' inactive products
     """
-    product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    product = db.query(ProductModel).filter(ProductModel.id == product_id).options(joinedload(ProductModel.user)).first()
     
     if not product:
         raise HTTPException(
@@ -291,7 +291,7 @@ def get_user_products(
     products = db.query(ProductModel).filter(
         ProductModel.user_id == user_id,
         ProductModel.is_active == True
-    ).order_by(ProductModel.created_at.desc())\
+    ).options(joinedload(ProductModel.user)).order_by(ProductModel.created_at.desc())\
      .limit(limit)\
      .offset(offset)\
      .all()
@@ -319,7 +319,7 @@ def get_all_user_products(
     
     products = db.query(ProductModel).filter(
         ProductModel.user_id == user_id
-    ).order_by(ProductModel.created_at.desc()).all()
+    ).options(joinedload(ProductModel.user)).order_by(ProductModel.created_at.desc()).all()
     
     return products
 
@@ -344,7 +344,7 @@ def get_all_products_admin(
             detail="Admin access required"
         )
     
-    query = db.query(ProductModel)
+    query = db.query(ProductModel).options(joinedload(ProductModel.user))
     
     # Filter out inactive products unless explicitly requested
     if not show_inactive:
@@ -377,7 +377,7 @@ def toggle_product_active(
             detail="Admin access required"
         )
     
-    db_product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
+    db_product = db.query(ProductModel).filter(ProductModel.id == product_id).options(joinedload(ProductModel.user)).first()
     
     if not db_product:
         raise HTTPException(
