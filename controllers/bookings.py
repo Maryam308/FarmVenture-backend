@@ -120,9 +120,8 @@ async def create_booking(
         
     except Exception as e:
         db.rollback()
-        print(f"❌ ERROR creating booking: {str(e)}")
-        import traceback
-        traceback.print_exc()  # Print full error traceback for debugging
+      
+   
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create booking: {str(e)}"
@@ -136,18 +135,14 @@ async def get_my_bookings(
     """
     Get current user's bookings.
     """
-    # ADD DEBUG LOGGING
-    print(f"🔍 DEBUG get_my_bookings:")
-    print(f"   Current user ID: {current_user.id}")
-    print(f"   Current user email: {current_user.email}")
-    print(f"   Current user role: {current_user.role}")
+  
     
     query = db.query(BookingModel).options(
         joinedload(BookingModel.activity),
         joinedload(BookingModel.user)
     ).filter(BookingModel.user_id == current_user.id)
     
-    print(f"   SQL Query filter: user_id = {current_user.id}")
+   
     
     if status_filter:
         if status_filter not in ["past", "today", "upcoming"]:
@@ -156,14 +151,12 @@ async def get_my_bookings(
                 detail="Status filter must be: past, today, or upcoming"
             )
         query = query.filter(BookingModel.status == status_filter)
-        print(f"   Additional filter: status = {status_filter}")
+     
     
     # Execute query
     bookings = query.order_by(BookingModel.booked_at.desc()).all()
     
-    print(f"   Found {len(bookings)} bookings for this user")
-    for i, booking in enumerate(bookings):
-        print(f"   Booking {i+1}: ID={booking.id}, Activity={booking.activity_id}, Tickets={booking.tickets_number}")
+   
     
     # Update status for each booking
     for booking in bookings:

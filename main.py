@@ -24,7 +24,7 @@ origins = [
 if frontendUrl:
     origins.append(frontendUrl)
 
-print(f"DEBUG: Final origins list: {origins}")
+
 
 app.add_middleware(
     CORSMiddleware,
