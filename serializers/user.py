@@ -9,7 +9,7 @@ class UserSchema(BaseModel):
     role: Optional[UserRole] = Field(default=UserRole.CUSTOMER)  
     
     class Config:
-        from_attributes = True  # CHANGED from orm_mode
+        from_attributes = True  
         use_enum_values = True  
 
 class UserResponseSchema(BaseModel):
@@ -18,7 +18,7 @@ class UserResponseSchema(BaseModel):
     role: UserRole 
     
     class Config:
-        from_attributes = True  # CHANGED from orm_mode
+        from_attributes = True  
         use_enum_values = True
 
 class UserLogin(BaseModel):
@@ -31,5 +31,5 @@ class UserToken(BaseModel):
     role: UserRole  
     
     class Config:
-        from_attributes = True  # CHANGED from orm_mode
+        from_attributes = True 
         use_enum_values = True
