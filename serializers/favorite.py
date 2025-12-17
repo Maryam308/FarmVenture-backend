@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Union
 from datetime import datetime
 from .product import ProductSchema
@@ -9,8 +9,7 @@ class FavoriteCreate(BaseModel):
     item_id: int = Field(..., description="ID of the product or activity")
     item_type: str = Field(..., description="Type: 'product' or 'activity'")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FavoriteResponse(BaseModel):
     """Schema for returning favorite data"""
@@ -20,8 +19,7 @@ class FavoriteResponse(BaseModel):
     item_type: str
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class FavoriteWithDetails(BaseModel):
     """Schema for returning favorite with item details"""
@@ -32,5 +30,4 @@ class FavoriteWithDetails(BaseModel):
     created_at: datetime
     item: Union[ProductSchema, ActivitySchema, dict]
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

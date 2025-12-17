@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from .user import UserResponseSchema
@@ -10,11 +10,10 @@ class ProductCreate(BaseModel):
     price: float = Field(..., gt=0, description="Price of the product")
     category: str = Field(..., min_length=1, max_length=50, description="Category (e.g., fruits, vegetables, dairy)")
     image_url: Optional[str] = Field(None, max_length=500, description="Product image URL")
-    # is_active is not included here - new products are always active
-
-    class Config:
-        from_attributes = True
-        schema_extra = {
+    
+    model_config = ConfigDict(
+        from_attributes=True,  # CHANGED from orm_mode
+        json_schema_extra={  # CHANGED from schema_extra
             "example": {
                 "name": "Organic Apples",
                 "description": "Fresh organic apples from local farm",
@@ -23,6 +22,7 @@ class ProductCreate(BaseModel):
                 "image_url": "https://res.cloudinary.com/cloudname/image/upload/v1/farmventure/products/apples.jpg"
             }
         }
+    )
 
 class ProductUpdate(BaseModel):
     """Schema for updating a product (all fields optional)"""
@@ -32,9 +32,8 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = Field(None, min_length=1, max_length=50)
     image_url: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = Field(None, description="Set product as active or inactive")
-
-    class Config:
-        from_attributes = True
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class ProductSchema(BaseModel):
     """Schema for returning product data"""
@@ -48,6 +47,5 @@ class ProductSchema(BaseModel):
     created_at: datetime
     updated_at: datetime
     user: UserResponseSchema
-
-    class Config:
-        from_attributes = True
+    
+    model_config = ConfigDict(from_attributes=True)

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from models.favorite import FavoriteModel
 from models.product import ProductModel
 from models.activity import ActivityModel
-from models.user import UserModel
+from models.user import UserModel, UserRole
 from serializers.favorite import FavoriteCreate, FavoriteResponse
 from serializers.product import ProductSchema
 from serializers.activity import ActivitySchema
@@ -20,26 +20,40 @@ def add_favorite(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Add a product or activity to user's favorites.
+    print("=" * 50)
+    print("ADD FAVORITE - DEBUG INFO")
+    print(f"User ID: {current_user.id}")
+    print(f"User Role Type: {type(current_user.role)}")
+    print(f"User Role Value: {current_user.role}")
+    print(f"Has is_customer method: {hasattr(current_user, 'is_customer')}")
     
-    - **item_id**: ID of the product or activity to favorite
-    - **item_type**: Type of item ('product' or 'activity')
-    """
-    # Validate item_type
+    try:
+        result = current_user.is_customer()
+        print(f"is_customer() returned: {result}")
+    except Exception as e:
+        print(f"ERROR calling is_customer(): {e}")
+        raise
+    
+    print("=" * 50)
+    
+    if not current_user.is_customer():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can add favorites"
+        )
+    
     if favorite.item_type not in ['product', 'activity']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="item_type must be either 'product' or 'activity'"
         )
     
-    # Check if item exists and is active
     if favorite.item_type == 'product':
         item = db.query(ProductModel).filter(
             ProductModel.id == favorite.item_id,
             ProductModel.is_active == True
         ).first()
-    else:  # activity
+    else:
         item = db.query(ActivityModel).filter(
             ActivityModel.id == favorite.item_id,
             ActivityModel.is_active == True
@@ -51,7 +65,6 @@ def add_favorite(
             detail=f"{favorite.item_type.capitalize()} with id {favorite.item_id} not found or is inactive"
         )
     
-    # Check if already favorited
     existing_favorite = db.query(FavoriteModel).filter(
         FavoriteModel.user_id == current_user.id,
         FavoriteModel.item_id == favorite.item_id,
@@ -59,10 +72,8 @@ def add_favorite(
     ).first()
     
     if existing_favorite:
-        # Instead of error, just return the existing favorite
         return existing_favorite
     
-    # Create new favorite
     new_favorite = FavoriteModel(
         user_id=current_user.id,
         item_id=favorite.item_id,
@@ -82,13 +93,28 @@ def get_user_favorites(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Get all favorites for the current user with details.
+    print("=" * 50)
+    print("GET FAVORITES - DEBUG INFO")
+    print(f"User ID: {current_user.id}")
+    print(f"User Role Type: {type(current_user.role)}")
+    print(f"User Role Value: {current_user.role}")
+    print(f"Has is_customer method: {hasattr(current_user, 'is_customer')}")
     
-    - **item_type**: Optional filter for 'product' or 'activity'
+    try:
+        result = current_user.is_customer()
+        print(f"is_customer() returned: {result}")
+    except Exception as e:
+        print(f"ERROR calling is_customer(): {e}")
+        raise
     
-    Returns favorites for active items only.
-    """
+    print("=" * 50)
+    
+    if not current_user.is_customer():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can view favorites"
+        )
+    
     query = db.query(FavoriteModel).filter(
         FavoriteModel.user_id == current_user.id
     )
@@ -103,14 +129,14 @@ def get_user_favorites(
     
     favorites = query.all()
     
-    # Fetch details for each favorite
     result = []
     for fav in favorites:
         if fav.item_type == 'product':
             item = db.query(ProductModel).filter(
                 ProductModel.id == fav.item_id,
                 ProductModel.is_active == True
-            ).first()
+            ).options(joinedload(ProductModel.user)).first()
+            
             if item:
                 result.append({
                     'id': fav.id,
@@ -120,11 +146,12 @@ def get_user_favorites(
                     'created_at': fav.created_at,
                     'item': ProductSchema.from_orm(item).dict()
                 })
-        else:  # activity
+        else:
             item = db.query(ActivityModel).filter(
                 ActivityModel.id == fav.item_id,
                 ActivityModel.is_active == True
-            ).first()
+            ).options(joinedload(ActivityModel.user)).first()
+            
             if item:
                 result.append({
                     'id': fav.id,
@@ -144,13 +171,27 @@ def get_favorite_ids(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Get just the IDs of favorited items (lightweight endpoint for checking favorites).
+    print("=" * 50)
+    print("GET FAVORITE IDS - DEBUG INFO")
+    print(f"User ID: {current_user.id}")
+    print(f"User Role Type: {type(current_user.role)}")
+    print(f"User Role Value: {current_user.role}")
+    print(f"Has is_customer method: {hasattr(current_user, 'is_customer')}")
     
-    - **item_type**: Optional filter for 'product' or 'activity'
+    try:
+        result = current_user.is_customer()
+        print(f"is_customer() returned: {result}")
+    except Exception as e:
+        print(f"ERROR calling is_customer(): {e}")
     
-    Returns a dict with item_type as key and list of IDs as value.
-    """
+    print("=" * 50)
+    
+    if not current_user.is_customer():
+        return {
+            'products': [],
+            'activities': []
+        }
+    
     query = db.query(FavoriteModel).filter(
         FavoriteModel.user_id == current_user.id
     )
@@ -165,7 +206,6 @@ def get_favorite_ids(
     
     favorites = query.all()
     
-    # Group by item_type
     result = {
         'products': [],
         'activities': []
@@ -187,12 +227,12 @@ def remove_favorite(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Remove an item from user's favorites.
+    if not current_user.is_customer():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only customers can remove favorites"
+        )
     
-    - **item_type**: Type of item ('product' or 'activity')
-    - **item_id**: ID of the item to unfavorite
-    """
     if item_type not in ['product', 'activity']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -206,7 +246,6 @@ def remove_favorite(
     ).first()
     
     if not favorite:
-        # Return success even if not found (idempotent operation)
         return {"message": f"{item_type.capitalize()} {item_id} was not in favorites", "success": True}
     
     db.delete(favorite)
@@ -222,12 +261,9 @@ def check_favorite(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Check if an item is in user's favorites.
+    if not current_user.is_customer():
+        return {"is_favorited": False}
     
-    - **item_type**: Type of item ('product' or 'activity')
-    - **item_id**: ID of the item to check
-    """
     if item_type not in ['product', 'activity']:
         return {"is_favorited": False}
     
