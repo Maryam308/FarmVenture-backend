@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Numeric, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from .base import BaseModel
@@ -16,6 +16,10 @@ class ActivityModel(BaseModel):
     current_capacity = Column(Integer, default=0) 
     is_active = Column(Boolean, default=True) 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc)) 
+
+    category = Column(String(50), nullable=False)  
+    location = Column(String(200), nullable=False)  
+    image_url = Column(String(500), nullable=False)  
     
     # Foreign key linking to users table
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
