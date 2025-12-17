@@ -5,6 +5,7 @@ from config.environment import db_URI
 from sqlalchemy import create_engine
 from models.product import ProductModel
 from models.activity import ActivityModel
+from models.favorite import FavoriteModel
 
 engine = create_engine(db_URI)
 SessionLocal = sessionmaker(bind=engine)
