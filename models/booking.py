@@ -12,14 +12,16 @@ class BookingStatus(str, enum.Enum):
 class BookingModel(BaseModel):
     __tablename__ = "bookings"
 
-    booking_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    # RENAME booking_id to id
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True) 
+    
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     activity_id = Column(Integer, ForeignKey('activities.id', ondelete='CASCADE'), nullable=False)
     tickets_number = Column(Integer, nullable=False, default=1)
     status = Column(Enum(BookingStatus), nullable=False, default=BookingStatus.UPCOMING)
     booked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relationships without back_populates
+    # Relationships
     user = relationship('UserModel')
     activity = relationship('ActivityModel')
 
@@ -30,9 +32,17 @@ class BookingModel(BaseModel):
         now = datetime.now(timezone.utc)
         activity_date = self.activity.date_time
         
-        if activity_date.date() < now.date():
+        # Handle both naive and aware datetimes
+        if activity_date.tzinfo is None:
+            # If naive, assume UTC
+            activity_date_aware = activity_date.replace(tzinfo=timezone.utc)
+        else:
+            activity_date_aware = activity_date
+        
+        # Compare dates
+        if activity_date_aware.date() < now.date():
             self.status = BookingStatus.PAST
-        elif activity_date.date() == now.date():
+        elif activity_date_aware.date() == now.date():
             self.status = BookingStatus.TODAY
         else:
             self.status = BookingStatus.UPCOMING

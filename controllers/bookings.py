@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from models.booking import BookingModel, BookingStatus
 from models.activity import ActivityModel
@@ -11,7 +11,15 @@ from database import get_db
 from dependencies.get_current_user import get_current_user
 from sqlalchemy.orm import joinedload
 
-router = APIRouter(prefix="/bookings", tags=["bookings"])
+router = APIRouter()
+
+def ensure_aware_datetime(dt):
+    """Ensure a datetime is timezone aware (UTC)"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 @router.post("/", response_model=BookingSchema, status_code=status.HTTP_201_CREATED)
 async def create_booking(
@@ -30,30 +38,40 @@ async def create_booking(
             detail="Admins cannot book activities. Please use a customer account."
         )
     
-    # Check if activity exists and is active
+    # Check if activity exists 
     activity = db.query(ActivityModel).filter(
-        ActivityModel.id == booking.activity_id,
-        ActivityModel.is_active == True
+        ActivityModel.id == booking.activity_id
     ).first()
     
     if not activity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity with id {booking.activity_id} not found or inactive"
+            detail=f"Activity with id {booking.activity_id} not found "
         )
     
     # Check if activity is in the past
-    if activity.date_time < datetime.now(timezone.utc):
+    now = datetime.now(timezone.utc)
+    activity_date_aware = ensure_aware_datetime(activity.date_time)
+    
+    if activity_date_aware < now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot book past activities"
         )
     
-    # Check capacity
-    if activity.current_capacity + booking.tickets_number > activity.max_capacity:
+    # Validate tickets number
+    if booking.tickets_number < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Not enough spots available. Only {activity.max_capacity - activity.current_capacity} spots left."
+            detail="Number of tickets must be at least 1"
+        )
+    
+    # Check capacity
+    spots_available = activity.max_capacity - activity.current_capacity
+    if booking.tickets_number > spots_available:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Not enough spots available. Only {spots_available} spot{'s' if spots_available != 1 else ''} remaining."
         )
     
     # Check if user already booked this activity
@@ -65,35 +83,50 @@ async def create_booking(
     if existing_booking:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already booked this activity"
+            detail="You have already booked this activity. Check your profile to view or modify your booking."
         )
     
     try:
-        # Create new booking
+        # Determine booking status based on activity date (COMPARE DATES, not datetime objects)
+        if activity_date_aware.date() < now.date():
+            initial_status = BookingStatus.PAST
+        elif activity_date_aware.date() == now.date():
+            initial_status = BookingStatus.TODAY
+        else:
+            initial_status = BookingStatus.UPCOMING
+        
+        # Create new booking with pre-calculated status
         new_booking = BookingModel(
             user_id=current_user.id,
             activity_id=booking.activity_id,
-            tickets_number=booking.tickets_number
+            tickets_number=booking.tickets_number,
+            status=initial_status  # Set status directly - NO update_status call needed
         )
-        
-        # Update booking status based on activity date
-        new_booking.update_status()
         
         # Update activity capacity
         activity.current_capacity += booking.tickets_number
         
+        # Add both objects to session
         db.add(new_booking)
         db.commit()
-        db.refresh(new_booking)
         
-        return new_booking
+        # Load the booking with all relationships for the response
+        booking_with_details = db.query(BookingModel).options(
+            joinedload(BookingModel.activity),
+            joinedload(BookingModel.user)
+        ).filter(BookingModel.id == new_booking.id).first()
+        
+        return booking_with_details
+        
     except Exception as e:
         db.rollback()
+        print(f"❌ ERROR creating booking: {str(e)}")
+        import traceback
+        traceback.print_exc()  # Print full error traceback for debugging
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create booking: {str(e)}"
         )
-
 @router.get("/my", response_model=List[BookingWithDetails])
 async def get_my_bookings(
     status_filter: Optional[str] = Query(None, description="Filter by status: past, today, upcoming"),
@@ -103,10 +136,18 @@ async def get_my_bookings(
     """
     Get current user's bookings.
     """
+    # ADD DEBUG LOGGING
+    print(f"🔍 DEBUG get_my_bookings:")
+    print(f"   Current user ID: {current_user.id}")
+    print(f"   Current user email: {current_user.email}")
+    print(f"   Current user role: {current_user.role}")
+    
     query = db.query(BookingModel).options(
         joinedload(BookingModel.activity),
         joinedload(BookingModel.user)
     ).filter(BookingModel.user_id == current_user.id)
+    
+    print(f"   SQL Query filter: user_id = {current_user.id}")
     
     if status_filter:
         if status_filter not in ["past", "today", "upcoming"]:
@@ -115,11 +156,14 @@ async def get_my_bookings(
                 detail="Status filter must be: past, today, or upcoming"
             )
         query = query.filter(BookingModel.status == status_filter)
+        print(f"   Additional filter: status = {status_filter}")
     
-    # Order by booking date (newest first)
-    query = query.order_by(BookingModel.booked_at.desc())
+    # Execute query
+    bookings = query.order_by(BookingModel.booked_at.desc()).all()
     
-    bookings = query.all()
+    print(f"   Found {len(bookings)} bookings for this user")
+    for i, booking in enumerate(bookings):
+        print(f"   Booking {i+1}: ID={booking.id}, Activity={booking.activity_id}, Tickets={booking.tickets_number}")
     
     # Update status for each booking
     for booking in bookings:
@@ -127,7 +171,6 @@ async def get_my_bookings(
     db.commit()
     
     return bookings
-
 @router.get("/admin/all", response_model=List[BookingWithDetails])
 async def get_all_bookings_admin(
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
@@ -190,7 +233,7 @@ async def get_booking(
     booking = db.query(BookingModel).options(
         joinedload(BookingModel.activity),
         joinedload(BookingModel.user)
-    ).filter(BookingModel.booking_id == booking_id).first()
+    ).filter(BookingModel.id == booking_id).first()
     
     if not booking:
         raise HTTPException(
@@ -222,7 +265,7 @@ async def update_booking(
     Update a booking (e.g., change number of tickets).
     Users can only update their own bookings.
     """
-    booking = db.query(BookingModel).filter(BookingModel.booking_id == booking_id).first()
+    booking = db.query(BookingModel).filter(BookingModel.id == booking_id).first()
     
     if not booking:
         raise HTTPException(
@@ -237,9 +280,17 @@ async def update_booking(
             detail="You can only update your own bookings"
         )
     
-    # Check if activity is in the past
+    # Get activity
     activity = db.query(ActivityModel).filter(ActivityModel.id == booking.activity_id).first()
-    if activity and activity.date_time < datetime.now(timezone.utc):
+    if not activity:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Associated activity not found"
+        )
+    
+    # Check if activity is in the past
+    activity_date_aware = ensure_aware_datetime(activity.date_time)
+    if activity_date_aware < datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot update booking for past activities"
@@ -247,10 +298,11 @@ async def update_booking(
     
     # Handle tickets number update
     if booking_update.tickets_number is not None:
-        if booking_update.tickets_number < 1 or booking_update.tickets_number > 10:
+        # Minimum 1 ticket
+        if booking_update.tickets_number < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Number of tickets must be between 1 and 10"
+                detail="Number of tickets must be at least 1"
             )
         
         # Calculate ticket difference
@@ -258,10 +310,11 @@ async def update_booking(
         
         if ticket_diff != 0:
             # Check capacity
-            if activity.current_capacity + ticket_diff > activity.max_capacity:
+            spots_available = activity.max_capacity - activity.current_capacity + booking.tickets_number
+            if booking_update.tickets_number > spots_available:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Not enough spots available. Only {activity.max_capacity - activity.current_capacity} spots left."
+                    detail=f"Not enough spots available. Only {spots_available} spot{'s' if spots_available != 1 else ''} available for this booking."
                 )
             
             # Update activity capacity
@@ -275,10 +328,16 @@ async def update_booking(
     # Update status
     booking.update_status()
     
-    db.commit()
-    db.refresh(booking)
-    
-    return booking
+    try:
+        db.commit()
+        db.refresh(booking)
+        return booking
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update booking. Please try again."
+        )
 
 @router.delete("/{booking_id}")
 async def cancel_booking(
@@ -290,7 +349,7 @@ async def cancel_booking(
     Cancel a booking.
     Users can only cancel their own bookings.
     """
-    booking = db.query(BookingModel).filter(BookingModel.booking_id == booking_id).first()
+    booking = db.query(BookingModel).filter(BookingModel.id == booking_id).first()
     
     if not booking:
         raise HTTPException(
@@ -305,13 +364,16 @@ async def cancel_booking(
             detail="You can only cancel your own bookings"
         )
     
-    # Check if activity is in the past
+    # Get activity
     activity = db.query(ActivityModel).filter(ActivityModel.id == booking.activity_id).first()
-    if activity and activity.date_time < datetime.now(timezone.utc):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot cancel booking for past activities"
-        )
+    if activity:
+        # Check if activity is in the past
+        activity_date_aware = ensure_aware_datetime(activity.date_time)
+        if activity_date_aware < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot cancel booking for past activities"
+            )
     
     try:
         # Update activity capacity
@@ -376,3 +438,76 @@ async def get_booking_stats_admin(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get booking statistics: {str(e)}"
         )
+
+@router.get("/availability/{activity_id}")
+async def check_booking_availability(
+    activity_id: int,
+    tickets_number: int = Query(1, ge=1, description="Number of tickets to check availability for"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Check if a booking is available for an activity.
+    This helps frontend validate before attempting to book.
+    """
+    # Check if activity exists 
+    activity = db.query(ActivityModel).filter(
+        ActivityModel.id == activity_id
+    ).first()
+    
+    if not activity:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Activity with id {activity_id} not found "
+        )
+    
+    # Check if activity is in the past
+    now = datetime.now(timezone.utc)
+    activity_date_aware = ensure_aware_datetime(activity.date_time)
+    
+    if activity_date_aware < now:
+        return {
+            "available": False,
+            "message": "Cannot book past activities"
+        }
+    
+    # Check capacity
+    spots_left = activity.max_capacity - activity.current_capacity
+    if spots_left <= 0:
+        return {
+            "available": False,
+            "message": "This activity is sold out"
+        }
+    
+    if tickets_number > spots_left:
+        return {
+            "available": False,
+            "message": f"Only {spots_left} spot{'s' if spots_left != 1 else ''} available"
+        }
+    
+    # Check if user already booked this activity
+    if current_user.role != UserRole.ADMIN.value:
+        existing_booking = db.query(BookingModel).filter(
+            BookingModel.user_id == current_user.id,
+            BookingModel.activity_id == activity_id
+        ).first()
+        
+        if existing_booking:
+            return {
+                "available": False,
+                "message": "You have already booked this activity"
+            }
+    
+    return {
+        "available": True,
+        "spots_left": spots_left,
+        "message": f"{spots_left} spot{'s' if spots_left != 1 else ''} available",
+        "activity": {
+            "id": activity.id,
+            "title": activity.title,
+            "date_time": activity.date_time.isoformat(),
+            "price": float(activity.price) if activity.price else 0.0,
+            "max_capacity": activity.max_capacity,
+            "current_capacity": activity.current_capacity
+        }
+    }

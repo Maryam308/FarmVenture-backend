@@ -38,9 +38,9 @@ app.add_middleware(
 
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
 app.include_router(ProductsRouter, prefix="/api", tags=["Products"])
-app.include_router(ActivitiesRouter, prefix="/activities", tags=["Activities"])
+app.include_router(ActivitiesRouter, prefix="/api/activities", tags=["Activities"]) 
 app.include_router(FavoritesRouter, prefix="/api", tags=["Favorites"])
-app.include_router(BookingsRouter, prefix="/api", tags=["Bookings"])
+app.include_router(BookingsRouter, prefix="/api/bookings", tags=["Bookings"])
 
 @app.get('/')
 def home():

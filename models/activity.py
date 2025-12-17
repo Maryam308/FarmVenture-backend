@@ -14,7 +14,6 @@ class ActivityModel(BaseModel):
     price = Column(Numeric(10, 2), nullable=False)
     max_capacity = Column(Integer, nullable=False)  
     current_capacity = Column(Integer, default=0) 
-    is_active = Column(Boolean, default=True) 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc)) 
 
     category = Column(String(50), nullable=False)  

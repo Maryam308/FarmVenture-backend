@@ -23,7 +23,6 @@ class ActivityUpdate(BaseModel):
     duration_minutes: Optional[int] = Field(None, gt=0)
     price: Optional[float] = Field(None, ge=0)
     max_capacity: Optional[int] = Field(None, gt=0)
-    is_active: Optional[bool] = None
     category: Optional[str] = Field(None, max_length=50)
     location: Optional[str] = Field(None, max_length=200)
     image_url: Optional[str] = Field(None, max_length=500)
@@ -38,7 +37,6 @@ class ActivitySchema(BaseModel):
     price: float
     max_capacity: int
     current_capacity: int
-    is_active: bool
     created_at: datetime
     user: UserResponseSchema
     category: str

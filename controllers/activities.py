@@ -43,8 +43,8 @@ def create_activity(
         location=activity.location,
         image_url=activity.image_url,
         user_id=current_user.id,
-        current_capacity=0,
-        is_active=True
+        current_capacity=0
+
     )
 
     db.add(new_activity)
@@ -62,8 +62,7 @@ def get_activities(
     Get all activities (public view for all users).
     """
     query = db.query(ActivityModel).options(joinedload(ActivityModel.user))
-    query = query.filter(ActivityModel.is_active == True)
-    
+
     if upcoming_only:
         query = query.filter(ActivityModel.date_time >= datetime.now())
     
@@ -159,43 +158,14 @@ def delete_activity(
     
     return {"message": f"Activity with id {activity_id} has been permanently deleted"}
 
-# Keep the toggle endpoint for activate/deactivate
-@router.patch("/{activity_id}/toggle")
-def toggle_activity_status(
-    activity_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
-):
-    """
-    Toggle activity status (active/inactive) - ADMIN ONLY.
-    """
-    if current_user.role != UserRole.ADMIN.value:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admin users can toggle activity status"
-        )
-    
-    db_activity = db.query(ActivityModel).filter(ActivityModel.id == activity_id).first()
-    
-    if not db_activity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity with id {activity_id} not found"
-        )
-    
-    db_activity.is_active = not db_activity.is_active
-    db.commit()
-    
-    status_word = "activated" if db_activity.is_active else "deactivated"
-    return db_activity  # Return the updated activity
-    
+
 @router.get("/admin/all", response_model=List[ActivitySchema])
 def get_all_activities_admin(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Get all activities for admin dashboard (including inactive ones).
+    Get all activities for admin dashboard 
     ADMIN ONLY.
     """
     if current_user.role != UserRole.ADMIN.value:

@@ -7,7 +7,7 @@ from .user import UserResponseSchema
 class BookingBase(BaseModel):
     """Base schema for booking data"""
     activity_id: int = Field(..., gt=0, description="ID of the activity to book")
-    tickets_number: int = Field(default=1, ge=1, le=10, description="Number of tickets to book (1-10)")
+    tickets_number: int = Field(default=1, ge=1, description="Number of tickets to book")  
 
 class BookingCreate(BookingBase):
     """Schema for creating a new booking"""
@@ -15,12 +15,12 @@ class BookingCreate(BookingBase):
 
 class BookingUpdate(BaseModel):
     """Schema for updating a booking (all fields optional)"""
-    tickets_number: Optional[int] = Field(None, ge=1, le=10)
+    tickets_number: Optional[int] = Field(None, ge=1, description="Number of tickets to book")  # REMOVED le=10
     status: Optional[str] = Field(None, description="Booking status: past, today, upcoming")
 
 class BookingSchema(BaseModel):
     """Schema for returning booking data"""
-    booking_id: int
+    id: int  # CHANGED FROM booking_id TO id
     user_id: int
     activity_id: int
     tickets_number: int
