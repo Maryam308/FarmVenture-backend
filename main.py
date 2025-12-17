@@ -1,10 +1,11 @@
 from fastapi import FastAPI
 from controllers.users import router as UsersRouter
 from controllers.products import router as ProductsRouter
-
+from controllers.activities import router as ActivitiesRouter
+from controllers.favorites import router as FavoritesRouter
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from controllers.activities import router as ActivitiesRouter
+
 frontendUrl = os.getenv("FRONTENDURL")
 
 app = FastAPI(
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(UsersRouter, prefix="/api", tags=["Users"])
 app.include_router(ProductsRouter, prefix="/api", tags=["Products"])
 app.include_router(ActivitiesRouter, prefix="/api", tags=["Activities"])
+app.include_router(FavoritesRouter, prefix="/api", tags=["Favorites"])
 
 @app.get('/')
 def home():
