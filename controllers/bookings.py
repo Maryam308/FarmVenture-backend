@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timezone
-
 from models.booking import BookingModel, BookingStatus
 from models.activity import ActivityModel
 from models.user import UserModel, UserRole
@@ -87,7 +86,7 @@ async def create_booking(
         )
     
     try:
-        # Determine booking status based on activity date (COMPARE DATES, not datetime objects)
+        # Determine booking status based on activity date 
         if activity_date_aware.date() < now.date():
             initial_status = BookingStatus.PAST
         elif activity_date_aware.date() == now.date():
@@ -100,7 +99,7 @@ async def create_booking(
             user_id=current_user.id,
             activity_id=booking.activity_id,
             tickets_number=booking.tickets_number,
-            status=initial_status  # Set status directly - NO update_status call needed
+            status=initial_status  
         )
         
         # Update activity capacity
@@ -142,8 +141,7 @@ async def get_my_bookings(
         joinedload(BookingModel.user)
     ).filter(BookingModel.user_id == current_user.id)
     
-   
-    
+
     if status_filter:
         if status_filter not in ["past", "today", "upcoming"]:
             raise HTTPException(
@@ -155,9 +153,7 @@ async def get_my_bookings(
     
     # Execute query
     bookings = query.order_by(BookingModel.booked_at.desc()).all()
-    
-   
-    
+
     # Update status for each booking
     for booking in bookings:
         booking.update_status()
