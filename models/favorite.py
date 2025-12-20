@@ -12,8 +12,8 @@ class FavoriteModel(BaseModel):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    item_id = Column(Integer, nullable=False)  # ID of product or activity
-    item_type = Column(String(20), nullable=False)  # 'product' or 'activity'
+    item_id = Column(Integer, nullable=False) 
+    item_type = Column(String(20), nullable=False) 
     
     # Relationships
     user = relationship('UserModel', backref='favorites')
