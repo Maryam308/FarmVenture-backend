@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 
 frontendUrl = os.getenv("FRONTENDURL")
+#test backend deplyment
 
 app = FastAPI(
     title="FarmVenture API",
