@@ -31,7 +31,6 @@ def create_activity(
             detail="Only admin users can create activities"
         )
     
-    # Create new activity instance with ALL fields
     new_activity = ActivityModel(
         title=activity.title,
         description=activity.description,
@@ -125,9 +124,7 @@ def update_activity(
     db.refresh(db_activity)
     return db_activity
 
-# In your activities controller
 
-# Change DELETE endpoint to do HARD DELETE (permanent removal)
 @router.delete("/{activity_id}")
 def delete_activity(
     activity_id: int,
