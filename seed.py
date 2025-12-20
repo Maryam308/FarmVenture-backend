@@ -19,7 +19,6 @@ try:
     print("Seeding the database...")
     db = SessionLocal()
 
-    # NEW: Seed users first to establish relationships
     db.add_all(user_list)
     db.commit()
 
