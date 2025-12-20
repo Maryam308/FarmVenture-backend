@@ -12,8 +12,8 @@ class ProductCreate(BaseModel):
     image_url: Optional[str] = Field(None, max_length=500, description="Product image URL")
     
     model_config = ConfigDict(
-        from_attributes=True,  # CHANGED from orm_mode
-        json_schema_extra={  # CHANGED from schema_extra
+        from_attributes=True, 
+        json_schema_extra={  
             "example": {
                 "name": "Organic Apples",
                 "description": "Fresh organic apples from local farm",
