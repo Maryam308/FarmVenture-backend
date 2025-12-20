@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from models.user import UserModel
 from database import get_db
 import jwt
-from jwt import DecodeError, ExpiredSignatureError # We import specific exceptions to handle them explicitly
+from jwt import DecodeError, ExpiredSignatureError 
 from config.environment import secret
 
 # We're using the HTTP Bearer scheme for the Authorization header
