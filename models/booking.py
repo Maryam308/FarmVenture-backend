@@ -12,7 +12,6 @@ class BookingStatus(str, enum.Enum):
 class BookingModel(BaseModel):
     __tablename__ = "bookings"
 
-    # RENAME booking_id to id
     id = Column(Integer, primary_key=True, index=True, autoincrement=True) 
     
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
@@ -34,7 +33,6 @@ class BookingModel(BaseModel):
         
         # Handle both naive and aware datetimes
         if activity_date.tzinfo is None:
-            # If naive, assume UTC
             activity_date_aware = activity_date.replace(tzinfo=timezone.utc)
         else:
             activity_date_aware = activity_date
