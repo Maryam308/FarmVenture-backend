@@ -15,12 +15,12 @@ class BookingCreate(BookingBase):
 
 class BookingUpdate(BaseModel):
     """Schema for updating a booking (all fields optional)"""
-    tickets_number: Optional[int] = Field(None, ge=1, description="Number of tickets to book")  # REMOVED le=10
+    tickets_number: Optional[int] = Field(None, ge=1, description="Number of tickets to book")  
     status: Optional[str] = Field(None, description="Booking status: past, today, upcoming")
 
 class BookingSchema(BaseModel):
     """Schema for returning booking data"""
-    id: int  # CHANGED FROM booking_id TO id
+    id: int 
     user_id: int
     activity_id: int
     tickets_number: int
