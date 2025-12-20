@@ -23,7 +23,7 @@ cloudinary.config(
 
 router = APIRouter()
 
-# GET all products (public - no auth required) - Only active products
+# GET all products 
 @router.get('/products', response_model=List[ProductSchema])
 def get_products(
     db: Session = Depends(get_db),
@@ -123,8 +123,7 @@ def get_any_product(
     # If product is inactive, only owner or admin can view it
     if not product.is_active and (is_owner or is_admin):
         return product
-    
-    # If we get here, user is not authorized to view this inactive product
+
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Product with id {product_id} not found"
@@ -241,7 +240,7 @@ def update_product(
     db.refresh(db_product)
     return db_product
 
-# DELETE product - HARD DELETE (requires authentication - owner OR admin)
+# DELETE product
 @router.delete('/products/{product_id}')
 def delete_product(
     product_id: int,
@@ -269,7 +268,6 @@ def delete_product(
             detail="Not authorized to delete this product"
         )
     
-    # HARD DELETE - remove from database
     db.delete(db_product)
     db.commit()
     
